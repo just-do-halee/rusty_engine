@@ -10,37 +10,49 @@ const ROTATION_SPEED: f32 = 3.0;
 fn main() {
     let mut game = Game::new();
 
-    let race_car = game.add_sprite("Race Car", SpritePreset::RacingCarGreen);
+    game.logic.push(load).push(logic);
+    game.run(());
+}
+
+fn load(_: &mut Engine, state: &mut State<()>) {
+    let race_car = state
+        .repo
+        .add_one(Sprite::new("Race Car", SpritePreset::RacingCarGreen));
     race_car.translation = Vec2::new(0.0, 0.0);
     race_car.rotation = UP;
     race_car.scale = 1.0;
     race_car.layer = 2.0;
 
-    let mover = game.add_sprite("move indicator", SpritePreset::RollingHoleStart);
+    let mover = state.repo.add_one(Sprite::new(
+        "move indicator",
+        SpritePreset::RollingHoleStart,
+    ));
     mover.translation = ORIGIN_LOCATION.into();
     mover.layer = 1.0;
 
-    let anchor = game.add_sprite("move indicator origin", SpritePreset::RollingHoleEnd);
+    let anchor = state.repo.add_one(Sprite::new(
+        "move indicator origin",
+        SpritePreset::RollingHoleEnd,
+    ));
     anchor.translation = ORIGIN_LOCATION.into();
     anchor.layer = 0.0;
 
-    let msg = game.add_text("relative message", "Relative Mouse Motion Indicator");
+    let msg = state.repo.add_one(Text::new(
+        "relative message",
+        "Relative Mouse Motion Indicator",
+    ));
     msg.translation.y = -300.0;
     msg.font_size = 20.0;
 
-    let msg2 = game.add_text(
+    let msg2 = state.repo.add_one(Text::new(
         "instructions",
         "Smooth Movement with Mouse State\n==============================\nMove the car around with your mouse.\nRotate it by holding left/right mouse buttons.\nScale it with the mousewheel.",
-    );
+    ));
     msg2.font_size = 30.0;
     msg2.translation.y = 275.0;
-
-    game.add_logic(logic);
-    game.run(());
 }
-
-fn logic(engine: &mut Engine, _: &mut ()) {
-    if let Some(sprite) = engine.sprites.get_mut("Race Car") {
+fn logic(engine: &mut Engine, state: &mut State<()>) {
+    if let Some(sprite) = state.repo.get_one_mut::<Sprite>("Race Car") {
         // Use the latest state of the mouse buttons to rotate the sprite
         let mut rotation_amount = 0.0;
         if engine.mouse_state.pressed(MouseButton::Left) {
@@ -68,7 +80,7 @@ fn logic(engine: &mut Engine, _: &mut ()) {
 
     // Offset the move indicator from the move indicator origin to visually represent the relative
     // mouse motion for the frame
-    if let Some(sprite) = engine.sprites.get_mut("move indicator") {
+    if let Some(sprite) = state.repo.get_one_mut::<Sprite>("move indicator") {
         let motion = engine.mouse_state.motion();
         // There seems to be a Bevy 0.6 bug where every other frame we don't receive any mouse
         // motion events, so ignore those frames.

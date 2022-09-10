@@ -1,14 +1,18 @@
 # Quick Start Example
 
 - Create a new Rust project and add `rusty_engine` as a dependency (see the [Configuration](05-config.md) page for more details)
+
 ```toml
 # In your [dependencies] section of Cargo.toml
 rusty_engine = "5.1.1"
 ```
+
 - Download the Asset Pack to your project (see the [Asset Pack](10-assets.md) page for more details).
+
 ```shell
 curl -L https://github.com/CleanCut/rusty_engine/archive/refs/heads/main.tar.gz | tar -zxv --strip-components=1 rusty_engine-main/assets
 ```
+
 - Write your game:
 
 ```rust,ignore
@@ -25,7 +29,7 @@ curl -L https://github.com/CleanCut/rusty_engine/archive/refs/heads/main.tar.gz 
      let mut game = Game::new();
 
      // Set up your game. `Game` exposes all of the methods and fields of `Engine`
-     let sprite = game.add_sprite("player", SpritePreset::RacingCarBlue);
+     let sprite = game.add_one(Sprite::new("player", SpritePreset::RacingCarBlue);
      sprite.scale = 2.0;
 
      game.audio_manager.play_music(MusicPreset::Classy8Bit, 1.0);
@@ -54,8 +58,8 @@ curl -L https://github.com/CleanCut/rusty_engine/archive/refs/heads/main.tar.gz 
          game_state.health -= 1;
      }
  }
- ```
+```
 
-- Run your game with `cargo run --release`.  Don't forget the `--release`!
+- Run your game with `cargo run --release`. Don't forget the `--release`!
 
 <img width="1348" alt="example screenshot" src="https://user-images.githubusercontent.com/5838512/146858022-1d91c7f4-8b21-4f85-a72a-c4b93edcabc6.png">

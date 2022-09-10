@@ -9,37 +9,50 @@ const ORIGIN_LOCATION: (f32, f32) = (0.0, -200.0);
 fn main() {
     let mut game = Game::new();
 
-    let race_car = game.add_sprite("Race Car", SpritePreset::RacingCarGreen);
+    game.logic.push(load).push(logic);
+    game.run(());
+}
+
+fn load(_: &mut Engine, state: &mut State<()>) {
+    let race_car = state
+        .repo
+        .add_one(Sprite::new("Race Car", SpritePreset::RacingCarGreen));
     race_car.translation = Vec2::new(0.0, 0.0);
     race_car.rotation = UP;
     race_car.scale = 1.0;
     race_car.layer = 2.0;
 
-    let mover = game.add_sprite("move indicator", SpritePreset::RollingHoleStart);
+    let mover = state.repo.add_one(Sprite::new(
+        "move indicator",
+        SpritePreset::RollingHoleStart,
+    ));
     mover.translation = ORIGIN_LOCATION.into();
     mover.layer = 1.0;
 
-    let anchor = game.add_sprite("move indicator origin", SpritePreset::RollingHoleEnd);
+    let anchor = state.repo.add_one(Sprite::new(
+        "move indicator origin",
+        SpritePreset::RollingHoleEnd,
+    ));
     anchor.translation = ORIGIN_LOCATION.into();
     anchor.layer = 0.0;
 
-    let msg = game.add_text("relative message", "Relative Mouse Motion Indicator");
+    let msg = state.repo.add_one(Text::new(
+        "relative message",
+        "Relative Mouse Motion Indicator",
+    ));
     msg.translation.y = -300.0;
     msg.font_size = 20.0;
 
-    let msg2 = game.add_text(
+    let msg2 = state.repo.add_one(Text::new(
         "instructions",
-        "Discrete Movement with Mouse Events\n==============================\nMove the car around with your mouse.\nRotate it by clicking left/right mouse buttons.\nScale it with the mousewheel.",
+        "Discrete Movement with Mouse Events\n==============================\nMove the car around with your mouse.\nRotate it by clicking left/right mouse buttons.\nScale it with the mousewheel.")
     );
     msg2.font_size = 30.0;
     msg2.translation.y = 275.0;
-
-    game.add_logic(logic);
-    game.run(());
 }
 
-fn logic(engine: &mut Engine, _: &mut ()) {
-    if let Some(sprite) = engine.sprites.get_mut("Race Car") {
+fn logic(engine: &mut Engine, state: &mut State<()>) {
+    if let Some(sprite) = state.repo.get_one_mut::<Sprite>("Race Car") {
         // Use mouse button events to rotate. Every click rotates the sprite by a fixed amount
         for mouse_button_input in &engine.mouse_button_events {
             if mouse_button_input.state != ButtonState::Pressed {
@@ -70,7 +83,7 @@ fn logic(engine: &mut Engine, _: &mut ()) {
 
     // Offset the move indicator sprite from the move indicator origin to visually represent the
     // relative mouse motion for the frame
-    if let Some(sprite) = engine.sprites.get_mut("move indicator") {
+    if let Some(sprite) = state.repo.get_one_mut::<Sprite>("move indicator") {
         // let motion = game_state.mouse_state.motion();
         // if motion != Vec2::ZERO {
         //     sprite.translation = motion + ORIGIN_LOCATION.into();

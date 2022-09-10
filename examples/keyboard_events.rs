@@ -7,22 +7,28 @@ use rusty_engine::prelude::*;
 fn main() {
     let mut game = Game::new();
 
-    let mut race_car = game.add_sprite("Race Car", SpritePreset::RacingCarGreen);
+    game.logic //
+        .push(load)
+        .push(logic);
+
+    game.run(());
+}
+
+fn load(_: &mut Engine, state: &mut State<()>) {
+    let mut race_car = state
+        .repo
+        .add_one(Sprite::new("Race Car", SpritePreset::RacingCarGreen));
     race_car.translation = Vec2::new(0.0, 0.0);
     race_car.rotation = UP;
     race_car.scale = 1.0;
 
     let instructions = "Discrete Movement with Keyboard Events\n==============================\nChange translation (move): w a s d / arrows\nChange Rotation: z c\nChange Scale: + -";
-    let text = game.add_text("instructions", instructions);
+    let text = state.repo.add_one(Text::new("instructions", instructions));
     text.translation.y = 250.0;
-
-    game.add_logic(logic);
-    game.run(());
 }
-
-fn logic(game_state: &mut Engine, _: &mut ()) {
+fn logic(game_state: &mut Engine, state: &mut State<()>) {
     // Get the race car sprite
-    let race_car = game_state.sprites.get_mut("Race Car").unwrap();
+    let race_car = state.repo.get_one_mut::<Sprite>("Race Car").unwrap();
 
     // Loop through any keyboard input that hasn't been processed this frame
     for keyboard_event in &game_state.keyboard_events {

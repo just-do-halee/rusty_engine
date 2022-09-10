@@ -1,6 +1,8 @@
 /// Facilities for dealing with text
 use bevy::prelude::{Component, Quat, Transform, Vec2, Vec3};
 
+use crate::traits::ManageTarget;
+
 /// Default depth of the text, positioned so it will be on top of other default layers. Depth
 /// can range from `0.0` (back) to `999.0` (front)
 pub const TEXT_DEFAULT_LAYER: f32 = 900.0;
@@ -58,5 +60,27 @@ impl Text {
         transform.rotation = Quat::from_axis_angle(Vec3::Z, self.rotation);
         transform.scale = Vec3::splat(self.scale);
         transform
+    }
+}
+
+impl ManageTarget for Text {
+    /// `label` should be a unique string (it will be used as a key in the hashmap
+    /// [`Engine::texts`](crate::prelude::Engine)). `file_or_preset` should either be a
+    /// [`SpritePreset`] variant, or a relative path to an image file inside the `assets/`
+    /// directory. If a collider definition exists in a file with the same name as the image file,
+    /// but with the `.collider` extension, then the collider will be loaded automatically. To
+    /// create a collider file you can either run the `collider` example, or
+    /// programmatically create a [`Collider`], set the sprite's `.collider` field to it, and call
+    /// the sprite's `.write_collider()` method.  All presets have collider files already.
+    fn new<S: Into<String>, P: Into<String>>(label: S, content: P) -> Self {
+        Self {
+            label: label.into(),
+            value: content.into(),
+            ..Default::default()
+        }
+    }
+    #[inline]
+    fn label(&self) -> &str {
+        &self.label
     }
 }

@@ -9,27 +9,30 @@ use rusty_engine::prelude::*;
 fn main() {
     let mut game = Game::new();
 
-    let mut race_car = game.add_sprite("Race Car", SpritePreset::RacingCarGreen);
+    game.logic.push(load).push(logic);
+    game.run(());
+}
+
+fn load(_: &mut Engine, state: &mut State<()>) {
+    let mut race_car = state
+        .repo
+        .add_one(Sprite::new("Race Car", SpritePreset::RacingCarGreen));
     race_car.translation = Vec2::new(0.0, 0.0);
     race_car.rotation = UP;
     race_car.scale = 1.0;
 
     let instructions = "Smooth movement with KeyboardState Example\n====================================\nChange translation (move): w a s d / arrows\nChange Rotation: z c\nChange Scale: + -";
-    let text = game.add_text("instructions", instructions);
+    let text = state.repo.add_one(Text::new("instructions", instructions));
     text.translation.y = 250.0;
-
-    game.add_logic(logic);
-    game.run(());
 }
-
-fn logic(game_state: &mut Engine, _: &mut ()) {
+fn logic(game_state: &mut Engine, state: &mut State<()>) {
     // Compute how fast we should move, rotate, and scale
     let move_amount = 200.0 * game_state.delta_f32;
     let rotation_amount = PI * game_state.delta_f32;
     let scale_amount = 1.0 * game_state.delta_f32;
 
     // Get the race car sprite
-    let race_car = game_state.sprites.get_mut("Race Car").unwrap();
+    let race_car = state.repo.get_one_mut::<Sprite>("Race Car").unwrap();
 
     // Handle keyboard input
     let ks = &mut game_state.keyboard_state;

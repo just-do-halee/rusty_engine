@@ -29,6 +29,19 @@ impl Default for GameState {
 }
 
 fn main() {
+    // Start with the "game" part
+    let mut game = Game::new();
+    game.show_colliders = true;
+    game.window_settings(WindowDescriptor {
+        title: "Collider Creator".into(),
+        ..Default::default()
+    });
+
+    game.logic.push(load).push(game_logic);
+    game.run(Default::default());
+}
+
+fn load(_: &mut Engine, state: &mut State<GameState>) {
     // Some trickiness to make assets load relative to the current working directory, which
     // makes using it from `cargo install rusty_engine --example collider` possible.
     // This takes advantage of bevy's hard-coded asset loading behavior, and may break in future
@@ -59,14 +72,9 @@ fn main() {
         std::process::exit(1);
     }
 
-    // Start with the "game" part
-    let mut game = Game::new();
-    game.show_colliders = true;
-    game.window_settings(WindowDescriptor {
-        title: "Collider Creator".into(),
-        ..Default::default()
-    });
-    let _ = game.add_sprite("sprite", path);
+    let _ = state
+        .repo
+        .add_one(Sprite::new("sprite", path.to_str().unwrap()));
 
     // Print instructions to the console
     println!("\n\
@@ -84,19 +92,17 @@ fn main() {
     *This command deletes the current collider in memory, but only writing the collider file will affect the collider file on disk.");
 
     // Tell the user to look to the console for the instructions
-    let msg = game.add_text("msg", "See console output for instructions.");
+    let msg = state
+        .repo
+        .add_one(Text::new("msg", "See console output for instructions."));
     msg.translation = Vec2::new(0.0, -325.0);
 
     // Text to let the user know whether or not their polygon is convex
-    let convex = game.add_text("convex", "???");
+    let convex = state.repo.add_one(Text::new("convex", "???"));
     convex.translation = Vec2::new(0.0, 325.0);
-
-    game.add_logic(game_logic);
-    game.run(Default::default());
 }
-
-fn game_logic(engine: &mut Engine, game_state: &mut GameState) {
-    let sprite = engine.sprites.get_mut("sprite").unwrap();
+fn game_logic(engine: &mut Engine, state: &mut State<GameState>) {
+    let sprite = state.repo.get_one_mut::<Sprite>("sprite").unwrap();
     // Zoom levels
     if engine.keyboard_state.just_pressed(KeyCode::Key1) {
         sprite.scale = 1.0;
@@ -154,13 +160,13 @@ fn game_logic(engine: &mut Engine, game_state: &mut GameState) {
         .keyboard_state
         .just_pressed_any(&[KeyCode::Plus, KeyCode::Equals, KeyCode::NumpadAdd])
     {
-        game_state.circle_radius += 0.5;
+        state.main.circle_radius += 0.5;
     }
     if engine
         .keyboard_state
         .just_pressed_any(&[KeyCode::Minus, KeyCode::NumpadSubtract])
     {
-        game_state.circle_radius -= 0.5;
+        state.main.circle_radius -= 0.5;
     }
     if engine.keyboard_state.just_pressed_any(&[
         KeyCode::Plus,
@@ -170,34 +176,31 @@ fn game_logic(engine: &mut Engine, game_state: &mut GameState) {
         KeyCode::NumpadSubtract,
         KeyCode::C,
     ]) {
-        sprite.collider = Collider::circle(game_state.circle_radius);
+        sprite.collider = Collider::circle(state.main.circle_radius);
         sprite.collider_dirty = true;
     }
+    let (sprite_is_convex, sprite_write_collider, filepath) = (
+        sprite.collider.is_convex(),
+        sprite.write_collider(),
+        sprite.collider_filepath.to_string_lossy().to_string(),
+    );
     // Let the user know whether or not their collider is currently convex
-    let convex = engine.texts.get_mut("convex").unwrap();
+    let convex = state.repo.get_one_mut::<Text>("convex").unwrap();
     const CONVEX_MESSAGE: &str = "Convex!";
     const NOT_CONVEX_MESSAGE: &str = "Not a convex polygon. :-(";
-    if sprite.collider.is_convex() {
+    if sprite_is_convex {
         if convex.value != CONVEX_MESSAGE {
             convex.value = CONVEX_MESSAGE.into();
         }
-    } else {
-        if convex.value != NOT_CONVEX_MESSAGE {
-            convex.value = NOT_CONVEX_MESSAGE.into();
-        }
+    } else if convex.value != NOT_CONVEX_MESSAGE {
+        convex.value = NOT_CONVEX_MESSAGE.into();
     }
     // Write the collider file
     if engine.keyboard_state.just_pressed(KeyCode::W) {
-        if sprite.write_collider() {
-            println!(
-                "Successfully wrote the new collider file: {}",
-                sprite.collider_filepath.to_string_lossy()
-            );
+        if sprite_write_collider {
+            println!("Successfully wrote the new collider file: {}", filepath);
         } else {
-            eprintln!(
-                "Error: unable to write the collider file: {}",
-                sprite.collider_filepath.to_string_lossy()
-            );
+            eprintln!("Error: unable to write the collider file: {}", filepath);
         }
     }
 }

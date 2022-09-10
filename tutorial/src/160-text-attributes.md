@@ -4,7 +4,6 @@ Changing the string value, the chosen font, or the font size causes the `Text` t
 
 All existing text values can be accessed through the `Engine.texts` vector.
 
-
 ### Value
 
 `Text.value` is the actual string that gets rendered to the screen. If you change the value, then the `Text` will be re-rendered as a new image at the end of the frame with the new value.
@@ -23,9 +22,8 @@ The asset pack contains two fonts:
 - `font/FiraMono-Medium.ttf`
 - `font/FiraSans-Bold.ttf` (the default font if none is specified)
 
-
 ```rust,ignored
-let mono = engine.add_text("mono", "This text is using a monospace font");
+let mono = engine.add_one(Sprite::new("mono", "This text is using a monospace font");
 mono.font = "font/FiraMono-Medium.ttf".to_string();
 ```
 
@@ -33,7 +31,7 @@ To use a custom font, place a valid `otf` or `ttf` file in `assets/` and set it 
 
 ```rust,ignored
 // After placing `party.otf` in the `assets/` directory...
-let party = engine.add_text("party", "Let's Party!");
+let party = engine.add_one(Sprite::new("party", "Let's Party!");
 mono.font = "party.otf".to_string();
 ```
 
@@ -50,6 +48,6 @@ If you change the font size, then the `Text` will be re-rendered as a new image 
 The default font size is `30.0`. Setting the font size doesn't require a lot of explanation:
 
 ```rust,ignored
-let large = engine.add_text("large", "This is a large font size!");
+let large = engine.add_one(Sprite::new("large", "This is a large font size!");
 mono.font_size = 96.0;
 ```

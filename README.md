@@ -47,9 +47,11 @@ If you are using Linux or Windows Subsystem for Linux 2, please visit Bevy's [In
 ### You MUST download the assets separately!!!
 
 Here are three different ways to download the assets (pick any of them--it should end up the same in the end):
+
 - Clone the `rusty_engine` repository and copy/move the `assets/` directory over to your own project
 - Download a [zip file](https://github.com/CleanCut/rusty_engine/archive/refs/heads/main.zip) or [tarball](https://github.com/CleanCut/rusty_engine/archive/refs/heads/main.tar.gz) of the `rusty_engine` repository, extract it, and copy/move the `assets/` directory over to your own project.
 - (My favorite!) On a posix compatible shell, run this command inside your project directory:
+
 ```shell
 curl -L https://github.com/CleanCut/rusty_engine/archive/refs/heads/main.tar.gz | tar -zxv --strip-components=1 rusty_engine-main/assets
 ```
@@ -76,7 +78,7 @@ Write your game!
      // Create a game
      let mut game = Game::new();
      // Set up your game. `Game` exposes all of the methods and fields of `Engine`.
-     let sprite = game.add_sprite("player", SpritePreset::RacingCarBlue);
+     let sprite = game.add_one(Sprite::new("player", SpritePreset::RacingCarBlue);
      sprite.scale = 2.0;
      game.audio_manager.play_music(MusicPreset::Classy8Bit, 1.0);
      // Add one or more functions with logic for your game. When the game is run, the logic
@@ -109,7 +111,6 @@ Run your game with `cargo run --release`!
 
 <img width="1348" alt="example screenshot" src="https://user-images.githubusercontent.com/5838512/146858022-1d91c7f4-8b21-4f85-a72a-c4b93edcabc6.png">
 
-
 See also the [tutorial](https://cleancut.github.io/rusty_engine/), [game scenarios](https://github.com/CleanCut/rusty_engine/tree/main/scenarios), [code examples](https://github.com/CleanCut/rusty_engine/tree/main/examples) and the [API documentation](https://docs.rs/rusty_engine/latest/rusty_engine/)
 
 ## Student Showcase
@@ -121,7 +122,7 @@ Show off the project you made with Rusty Engine! Learning Rust can be fun. 😄 
 
 ## Contribution
 
-All software contributions are assumed to be dual-licensed under MIT/Apache-2.  All asset contributions must be under licenses compatible with the software license, and explain their license(s) in a `README.md` file in the same directory as the source files.
+All software contributions are assumed to be dual-licensed under MIT/Apache-2. All asset contributions must be under licenses compatible with the software license, and explain their license(s) in a `README.md` file in the same directory as the source files.
 
 ## Asset Licenses
 
@@ -135,11 +136,11 @@ Distributed under the terms of both the MIT license and the Apache License (Vers
 
 See [license/APACHE](license/APACHE) and [license/MIT](license/MIT).
 
-[CPAL]: https://github.com/RustAudio/cpal
-[Questions]: https://github.com/CleanCut/rusty_engine/discussions
-[Ultimate Rust Crash Course]: https://agileperception.com/ultimate_rust_crash_course
+[cpal]: https://github.com/RustAudio/cpal
+[questions]: https://github.com/CleanCut/rusty_engine/discussions
+[ultimate rust crash course]: https://agileperception.com/ultimate_rust_crash_course
 [bug reports]: https://github.com/CleanCut/rusty_engine/issues/new
 [rendy]: https://github.com/amethyst/rendy
-[on GitHub]: https://github.com/sponsors/CleanCut
-[on Patreon]: https://patreon.com/nathanstocks
-[Bevy]: https://bevyengine.org/
+[on github]: https://github.com/sponsors/CleanCut
+[on patreon]: https://patreon.com/nathanstocks
+[bevy]: https://bevyengine.org/

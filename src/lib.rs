@@ -22,7 +22,7 @@
 //!     // Create a game
 //!     let mut game = Game::new();
 //!     // Set up your game. `Game` exposes all of the methods and fields of `Engine`.
-//!     let sprite = game.add_sprite("player", SpritePreset::RacingCarBlue);
+//!     let sprite = game.add_one(Sprite::new("player", SpritePreset::RacingCarBlue);
 //!     sprite.scale = 2.0;
 //!     game.audio_manager.play_music(MusicPreset::Classy8Bit, 1.0);
 //!     // Add one or more functions with logic for your game. When the game is run, the logic
@@ -70,11 +70,17 @@ pub mod keyboard;
 pub mod mouse;
 pub mod physics;
 pub mod sprite;
+pub mod state;
 pub mod text;
+
+pub mod traits;
 
 // Public prelude
 pub mod prelude {
-    pub use crate::{audio::*, game::*, keyboard::*, mouse::*, physics::*, sprite::*, text::*};
+    pub use crate::{
+        audio::*, game::*, keyboard::*, mouse::*, physics::*, sprite::*, state::*, text::*,
+        traits::*,
+    };
     pub use crate::{
         DOWN, EAST, LEFT, NORTH, NORTH_EAST, NORTH_WEST, RIGHT, SOUTH, SOUTH_EAST, SOUTH_WEST, UP,
         WEST,

@@ -8,13 +8,11 @@ use bevy::{
     },
     render::texture::ImageSettings,
     time::Time,
-    utils::HashMap,
     window::close_on_esc,
 };
 use bevy_prototype_lyon::prelude::*;
 use std::{
     ops::{Deref, DerefMut},
-    path::PathBuf,
     time::Duration,
 };
 
@@ -26,11 +24,33 @@ use crate::{
         MouseState, PhysicsPlugin,
     },
     sprite::Sprite,
+    state::{Repository, State},
     text::Text,
+    traits::*,
 };
 
 // Public re-export
 pub use bevy::window::{WindowDescriptor, WindowMode, WindowResizeConstraints};
+
+pub struct Logic<S>(Vec<fn(&mut Engine, &mut State<S>)>);
+
+impl<S> Default for Logic<S> {
+    fn default() -> Self {
+        Self(vec![])
+    }
+}
+
+impl<S> Logic<S> {
+    /// `logic_function` is a function or closure that takes two parameters and returns nothing:
+    ///
+    /// - `engine: &mut Engine`
+    /// - `game_state`, which is a mutable reference (`&mut`) to the game state struct you defined,
+    ///    or `&mut ()` if you didn't define one.
+    pub fn push(&mut self, logic_function: fn(&mut Engine, &mut State<S>)) -> &mut Self {
+        self.0.push(logic_function);
+        self
+    }
+}
 
 /// Engine is the primary way that you will interact with Rusty Engine. Each frame this struct
 /// is provided to the "logic" functions (or closures) that you provided to [`Game::add_logic`]. The
@@ -49,12 +69,6 @@ pub use bevy::window::{WindowDescriptor, WindowMode, WindowResizeConstraints};
 /// free to, e.g. consume all the events out of the `collision_events` vector.
 #[derive(Default, Debug)]
 pub struct Engine {
-    /// SYNCED - The state of all sprites this frame. To add a sprite, use the
-    /// [`add_sprite`](Engine::add_sprite) method. Modify & remove sprites as you like.
-    pub sprites: HashMap<String, Sprite>,
-    /// SYNCED - The state of all texts this frame. For convenience adding a text, use the
-    /// [`add_text`](Engine::add_text) method. Modify & remove text as you like.
-    pub texts: HashMap<String, Text>,
     /// SYNCED - If set to `true`, the game exits. Note: the current frame will run to completion first.
     pub should_exit: bool,
     /// SYNCED - If set to `true`, then debug lines are shown depicting sprite colliders
@@ -113,50 +127,15 @@ pub struct Engine {
     pub window_dimensions: Vec2,
 }
 
-impl Engine {
-    #[must_use]
-    /// Create and add a [`Sprite`] to the game. Use the `&mut Sprite` that is returned to adjust
-    /// the translation, rotation, etc. Use a *unique* label for each sprite. Attempting to add two
-    /// sprites with the same label will cause a crash.
-    pub fn add_sprite<T: Into<String>, P: Into<PathBuf>>(
-        &mut self,
-        label: T,
-        file_or_preset: P,
-    ) -> &mut Sprite {
-        let label = label.into();
-        self.sprites
-            .insert(label.clone(), Sprite::new(label.clone(), file_or_preset));
-        // Unwrap: Can't crash because we just inserted the sprite
-        self.sprites.get_mut(&label).unwrap()
-    }
-
-    #[must_use]
-    /// Create and add a [`Text`] to the game. Use the `&mut Text` that is returned to adjust the
-    /// translation, rotation, etc. Use a *unique* label for each text. Attempting to add two texts
-    /// with the same label will cause a crash.
-    pub fn add_text<T, S>(&mut self, label: T, text: S) -> &mut Text
-    where
-        T: Into<String>,
-        S: Into<String>,
-    {
-        let label = label.into();
-        let text = text.into();
-        let curr_text = Text {
-            label: label.clone(),
-            value: text,
-            ..Default::default()
-        };
-        self.texts.insert(label.clone(), curr_text);
-        // Unwrap: Can't crash because we just inserted the text
-        self.texts.get_mut(&label).unwrap()
-    }
-}
-
 /// startup system - grab window settings, initialize all the starting sprites
 #[doc(hidden)]
-pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut engine: ResMut<Engine>) {
-    add_sprites(&mut commands, &asset_server, &mut engine);
-    add_texts(&mut commands, &asset_server, &mut engine);
+pub fn setup<S: Send + Sync + 'static>(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut state: ResMut<State<S>>,
+) {
+    add_sprites(&mut commands, &asset_server, &mut state.repo);
+    add_texts(&mut commands, &asset_server, &mut state.repo);
 }
 
 /// Add visible lines representing a collider
@@ -187,8 +166,12 @@ fn add_collider_lines(commands: &mut Commands, sprite: &mut Sprite) {
 
 /// helper function: Add Bevy components for all the sprites in engine.sprites
 #[doc(hidden)]
-pub fn add_sprites(commands: &mut Commands, asset_server: &Res<AssetServer>, engine: &mut Engine) {
-    for (_, sprite) in engine.sprites.drain() {
+pub fn add_sprites(
+    commands: &mut Commands,
+    asset_server: &Res<AssetServer>,
+    repo: &mut Repository,
+) {
+    for sprite in repo.drain_all::<Sprite>() {
         // Create the sprite
         let transform = sprite.bevy_transform();
         let texture_path = sprite.filepath.clone();
@@ -203,8 +186,8 @@ pub fn add_sprites(commands: &mut Commands, asset_server: &Res<AssetServer>, eng
 /// Bevy system which adds any needed Bevy components to correspond to the texts in
 /// `engine.texts`
 #[doc(hidden)]
-pub fn add_texts(commands: &mut Commands, asset_server: &Res<AssetServer>, engine: &mut Engine) {
-    for (_, text) in engine.texts.drain() {
+pub fn add_texts(commands: &mut Commands, asset_server: &Res<AssetServer>, repo: &mut Repository) {
+    for text in repo.drain_all::<Text>() {
         let transform = text.bevy_transform();
         let font_size = text.font_size;
         let text_string = text.value.clone();
@@ -258,7 +241,7 @@ pub struct ColliderLines {
 pub struct Game<S: Send + Sync + 'static> {
     app: App,
     engine: Engine,
-    logic_functions: Vec<fn(&mut Engine, &mut S)>,
+    pub logic: Logic<S>,
     window_descriptor: WindowDescriptor,
 }
 
@@ -267,7 +250,7 @@ impl<S: Send + Sync + 'static> Default for Game<S> {
         Self {
             app: App::new(),
             engine: Engine::default(),
-            logic_functions: vec![],
+            logic: Logic::default(),
             window_descriptor: WindowDescriptor {
                 title: "Rusty Engine".into(),
                 ..Default::default()
@@ -299,7 +282,7 @@ impl<S: Send + Sync + 'static> Game<S> {
         self.app
             .insert_resource::<WindowDescriptor>(self.window_descriptor.clone())
             .insert_resource(ImageSettings::default_nearest())
-            .insert_resource::<S>(initial_game_state);
+            .insert_resource::<State<S>>(State::new(initial_game_state));
         self.app
             // Built-ins
             .add_plugins(DefaultPlugins)
@@ -317,26 +300,17 @@ impl<S: Send + Sync + 'static> Game<S> {
                     .label("update_window_dimensions")
                     .before("game_logic_sync"),
             )
-            .add_system(game_logic_sync::<S>.label("game_logic_sync"))
-            .add_startup_system(setup);
+            .add_system(game_logic_sync::<State<S>>.label("game_logic_sync"))
+            .add_startup_system(setup::<S>);
         self.app
             .world
             .spawn()
             .insert_bundle(Camera2dBundle::default());
         let engine = std::mem::take(&mut self.engine);
         self.app.insert_resource(engine);
-        let logic_functions = std::mem::take(&mut self.logic_functions);
-        self.app.insert_resource(logic_functions);
+        let logic = std::mem::take(&mut self.logic);
+        self.app.insert_resource(logic);
         self.app.run();
-    }
-
-    /// `logic_function` is a function or closure that takes two parameters and returns nothing:
-    ///
-    /// - `engine: &mut Engine`
-    /// - `game_state`, which is a mutable reference (`&mut`) to the game state struct you defined,
-    ///    or `&mut ()` if you didn't define one.
-    pub fn add_logic(&mut self, logic_function: fn(&mut Engine, &mut S)) {
-        self.logic_functions.push(logic_function);
     }
 }
 
@@ -346,8 +320,8 @@ fn game_logic_sync<S: Send + Sync + 'static>(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut engine: ResMut<Engine>,
-    mut game_state: ResMut<S>,
-    logic_functions: Res<Vec<fn(&mut Engine, &mut S)>>,
+    mut state: ResMut<State<S>>,
+    logic: Res<Vec<fn(&mut Engine, &mut State<S>)>>,
     keyboard_state: Res<KeyboardState>,
     mouse_state: Res<MouseState>,
     time: Res<Time>,
@@ -378,29 +352,28 @@ fn game_logic_sync<S: Send + Sync + 'static>(
     }
 
     // Copy all sprites over to the engine to give to users
-    engine.sprites.clear();
+
+    state.repo.clear::<Sprite>();
     for (_, sprite, _) in query_set.p0().iter() {
-        let _ = engine
-            .sprites
-            .insert(sprite.label.clone(), (*sprite).clone());
+        let _ = state.repo.add_one(sprite.clone());
     }
 
     // Copy all texts over to the engine to give to users
-    engine.texts.clear();
+    state.repo.clear::<Text>();
     for (_, text, _, _) in query_set.p1().iter() {
-        let _ = engine.texts.insert(text.label.clone(), (*text).clone());
+        let _ = state.repo.add_one(text.clone());
     }
 
     // Perform all the user's game logic for this frame
-    for func in logic_functions.iter() {
-        func(&mut engine, &mut game_state);
+    for func in logic.iter() {
+        func(&mut engine, &mut state);
     }
 
     if !engine.last_show_colliders && engine.show_colliders {
         // Just turned on show_colliders -- create collider lines for all sprites
-        for sprite in engine.sprites.values_mut() {
-            add_collider_lines(&mut commands, sprite);
-        }
+        state
+            .repo
+            .for_each_mut(|sprite| add_collider_lines(&mut commands, sprite));
     } else if engine.last_show_colliders && !engine.show_colliders {
         // Just turned off show_colliders -- delete collider lines for all sprites
         for (entity, _, _, _) in query_set.p2().iter_mut() {
@@ -411,7 +384,7 @@ fn game_logic_sync<S: Send + Sync + 'static>(
     if engine.show_colliders {
         // Delete collider lines for sprites which are missing, or whose colliders are dirty
         for (entity, _, _, collider_lines) in query_set.p2().iter_mut() {
-            if let Some(sprite) = engine.sprites.get(&collider_lines.sprite_label) {
+            if let Some(sprite) = state.repo.get_one::<Sprite>(&collider_lines.sprite_label) {
                 if sprite.collider_dirty {
                     commands.entity(entity).despawn();
                 }
@@ -420,14 +393,15 @@ fn game_logic_sync<S: Send + Sync + 'static>(
             }
         }
         // Add collider lines for sprites whose colliders are dirty
-        for sprite in engine.sprites.values_mut() {
-            if sprite.collider_dirty {
-                add_collider_lines(&mut commands, sprite);
-            }
-        }
+
+        state
+            .repo
+            .filter_mut::<Sprite, _>(|sprite| sprite.collider_dirty)
+            .for_each(|sprite| add_collider_lines(&mut commands, sprite));
+
         // Update transform & line width
         for (_, mut draw_mode, mut transform, collider_lines) in query_set.p2().iter_mut() {
-            if let Some(sprite) = engine.sprites.get(&collider_lines.sprite_label) {
+            if let Some(sprite) = state.repo.get_one::<Sprite>(&collider_lines.sprite_label) {
                 *transform = sprite.bevy_transform();
                 // We want collider lines to appear on top of the sprite they are for, so they need a
                 // slightly higher z value. We tell users to only use up to 999.0.
@@ -445,7 +419,7 @@ fn game_logic_sync<S: Send + Sync + 'static>(
 
     // Transfer any changes in the user's Sprite copies to the Bevy Sprite and Transform components
     for (entity, mut sprite, mut transform) in query_set.p0().iter_mut() {
-        if let Some(sprite_copy) = engine.sprites.remove(&sprite.label) {
+        if let Some(sprite_copy) = state.repo.remove(&sprite.label) {
             *sprite = sprite_copy;
             *transform = sprite.bevy_transform();
         } else {
@@ -454,11 +428,11 @@ fn game_logic_sync<S: Send + Sync + 'static>(
     }
 
     // Add Bevy components for any new sprites remaining in engine.sprites
-    add_sprites(&mut commands, &asset_server, &mut engine);
+    add_sprites(&mut commands, &asset_server, &mut state.repo);
 
     // Transfer any changes in the user's Texts to the Bevy Text and Transform components
     for (entity, mut text, mut transform, mut bevy_text_component) in query_set.p1().iter_mut() {
-        if let Some(text_copy) = engine.texts.remove(&text.label) {
+        if let Some(text_copy) = state.repo.remove(&text.label) {
             *text = text_copy;
             *transform = text.bevy_transform();
             if text.value != bevy_text_component.sections[0].value {
@@ -478,7 +452,7 @@ fn game_logic_sync<S: Send + Sync + 'static>(
     }
 
     // Add Bevy components for any new texts remaining in engine.texts
-    add_texts(&mut commands, &asset_server, &mut engine);
+    add_texts(&mut commands, &asset_server, &mut state.repo);
 
     if engine.should_exit {
         app_exit_events.send(AppExit);

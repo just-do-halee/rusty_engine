@@ -26,20 +26,19 @@ const UI_BOTTOM_LAYER: f32 = 3.0;
 const UI_TOP_LAYER: f32 = 4.0;
 ```
 
-
 ### Adjusting your newly-created sprite
 
 When you create a sprite, you get a mutable reference to the newly-created sprite that you can use to adjust it.
 
 ```rust,ignored
-let player = engine.add_sprite("my_player", SpritePreset::RacingCarBlue);
+let player = engine.add_one(Sprite::new("my_player", SpritePreset::RacingCarBlue);
 player.translation = Vec2::new(200.0, 100.0); // Move the car up and to the right
 player.rotation = UP; // UP is one of the built-in constants you can use
 player.scale = 2.5; // It's a BIG car!
 player.layer = CHARACTER_LAYER; // as in previous code snippet
 ```
 
-The `Vec2` type used for the `translation` field is from `glam`, and has [its own documentation](https://docs.rs/glam/latest/glam/f32/struct.Vec2.html) you can read up on if you're interested.  The thing you'll probably use the most are its `x` and `y` fields:
+The `Vec2` type used for the `translation` field is from `glam`, and has [its own documentation](https://docs.rs/glam/latest/glam/f32/struct.Vec2.html) you can read up on if you're interested. The thing you'll probably use the most are its `x` and `y` fields:
 
 ```rust,ignored
 player.translation.x += 45.0 * engine.delta_f32;
@@ -50,8 +49,7 @@ NOTE: If you want to adjust your sprite smoothly, you will need to multiply it b
 
 ### Adjusting an existing sprite
 
-To adjust a sprite which already exists, you need to get a mutable reference to it.  This is where that "label" comes in.  The `Engine.sprites` field is a hash map of labels to sprites. You get a mutable reference to a sprite with the `HashMap::get_mut` method:
-
+To adjust a sprite which already exists, you need to get a mutable reference to it. This is where that "label" comes in. The `Engine.sprites` field is a hash map of labels to sprites. You get a mutable reference to a sprite with the `HashMap::get_mut` method:
 
 ```rust,ignored
 // Be careful with unwrap()! If the entry isn't there, this will crash your game.
@@ -66,4 +64,3 @@ To delete a sprite, simply remove it from the `Engine.sprites` hash map.
 ```rust,ignored
 engine.sprites.remove("my_player");
 ```
-

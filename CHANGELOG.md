@@ -1,4 +1,5 @@
 <!-- next-header -->
+
 ## [Unreleased] - ReleaseDate
 
 ## Added
@@ -16,7 +17,6 @@
 ## Improved
 
 - Updated to `bevy 0.8` and `bevy_prototype_lyon 0.6` under the hood, which resolves the occasional stuttering problem.
-
 
 ## [5.1.0] - 2022-06-18
 
@@ -118,58 +118,58 @@ Yes, I know I shouldn't be releasing breaking changes in a patch release...but n
 ### BREAKING CHANGES
 
 - The fundamental way that Rusty Engine connects a user's game state to Bevy has been heavily
-refactored to a new solution based on macros so that users can provide a custom struct with their
-desired game state. This obseletes the old generic vectors and maps of various types that used to be
-stored on the `GameState` struct (which itself has been renamed to `EngineState` to more accurately
-describe what it is used for). Please refer to the [readme](./README.md) and
-[docs](https://docs.rs/rusty_engine/latest/rusty_engine/) for comprehensive documentation on the new
-approach.
+  refactored to a new solution based on macros so that users can provide a custom struct with their
+  desired game state. This obseletes the old generic vectors and maps of various types that used to be
+  stored on the `GameState` struct (which itself has been renamed to `EngineState` to more accurately
+  describe what it is used for). Please refer to the [readme](./README.md) and
+  [docs](https://docs.rs/rusty_engine/latest/rusty_engine/) for comprehensive documentation on the new
+  approach.
 - Placing the module-level macro call `rusty_engine::init!(MyGameState)` is now required.
-`MyGameState` is any user-defined struct type that will be passed to the logic functions each frame.
+  `MyGameState` is any user-defined struct type that will be passed to the logic functions each frame.
 - `GameState` has been renamed to `EngineState` so that user's custom game state can be referred to
-as `GameState` instead.
-   - `GameState::add_actor` has been renamed to `EngineState::add_sprite`
-   - `GameState::add_text_actor` has been renamed to `EngineState::add_text`
+  as `GameState` instead.
+  - `GameState::add_actor` has been renamed to `EngineState::add_one`
+  - `GameState::add_one_actor` has been renamed to `EngineState::add_one`
 - `Game` now implements `Deref` and `DerefMut` for `EngineState`, so you can easily access
-`EngineState`'s methods from `Game` in `main.rs` for your game setup. `Game::game_state_mut` has
-been removed (if it had stayed it would have been renamed `engine_state_mut`, but with the deref
-implementations it's not needed at all).
+  `EngineState`'s methods from `Game` in `main.rs` for your game setup. `Game::game_state_mut` has
+  been removed (if it had stayed it would have been renamed `engine_state_mut`, but with the deref
+  implementations it's not needed at all).
 - `GameState.screen_dimensions`, which was set at startup and never updated, has been replaced by `EngineState.window_dimensions`, which is updated every frame so resizing the window can be handled in your game logic.
 - Multiple logic functions can now be run. Pass them to `Game::run` in the order you would like them
-run. Return `false` to abort running any later functions during the frame.
+  run. Return `false` to abort running any later functions during the frame.
 - Logic functions now need to fit the signature `fn somename(engine_state: &mut EngineState, game_state: &mut GameState) -> bool`, where `GameState` is the user-defined struct passed to `rusty_engine::init!()`, or `()` if nothing was passed in.
 - `.play_sfx()` now takes a volume level from `0.0` to `1.0` as a second argument, e.g. `.play_sfx(SfxPreset::Congratulations, 1.0)`
 - `Actor` has been renamed to `Sprite` to eliminate the confusing "actor" terminalogy.
-   - `Actor::build` has been replaced by `Sprite::new`, which _must_ be used to create a `Sprite` instead of defining a struct literal (enforced via private phantom data). The `Default` implementation has been removed because of the previous restriction.
-   - `Actor.preset` has been removed
-   - `Actor.filename` (a `String`) has been replaced with `Sprite.filepath` (a `PathBuf`)
-   - The builder methods `Actor::set_collision` and `Actor::set_collider` have been removed since we never ended up adopting a builder pattern.
-   - `Sprite.collider_filepath` has been added
-   - `Sprite::write_collider` has been added (see note below about changes to colliders)
+  - `Actor::build` has been replaced by `Sprite::new`, which _must_ be used to create a `Sprite` instead of defining a struct literal (enforced via private phantom data). The `Default` implementation has been removed because of the previous restriction.
+  - `Actor.preset` has been removed
+  - `Actor.filename` (a `String`) has been replaced with `Sprite.filepath` (a `PathBuf`)
+  - The builder methods `Actor::set_collision` and `Actor::set_collider` have been removed since we never ended up adopting a builder pattern.
+  - `Sprite.collider_filepath` has been added
+  - `Sprite::write_collider` has been added (see note below about changes to colliders)
 - `TextActor` has been renamed to `Text` to eliminate the confusing "actor" terminology.
-   - `TextActor.text` is now `Text.value` for similar reasons.
-- `Sprite`s may now be created with either a `SpritePreset` or the path to an image file via both `Sprite::new` or `EngineState::add_sprite`. The image file needs to be stored in `assets/sprite` or one of its subdirectories. When specifying the path to the file, the path relative to `assets/sprite` should be used. For example, if your image is `assets/sprite/circus/animal.png` then you would pass `circus/animal.png` to one of the methods to create the sprite.
+  - `TextActor.text` is now `Text.value` for similar reasons.
+- `Sprite`s may now be created with either a `SpritePreset` or the path to an image file via both `Sprite::new` or `EngineState::add_one`. The image file needs to be stored in `assets/sprite` or one of its subdirectories. When specifying the path to the file, the path relative to `assets/sprite` should be used. For example, if your image is `assets/sprite/circus/animal.png` then you would pass `circus/animal.png` to one of the methods to create the sprite.
 - `SpritePreset::build_from_name` and `SpritePreset::build` have been removed (see note above about the new, more flexible way to create sprites)
 - `SpritePreset::collider()` has been removed since colliders are no longer hard-coded features of presets (see note below about changes to colliders)
 - `SpritePreset::filename -> String` has been replaced by `SpritePreset::filepath -> PathBuf`, which powers the `impl From<SpritePreset> for PathBuf` implementation.
-- Colliders are now loaded from collider files. Collider files use the [Rusty Object Notation (RON)](https://github.com/ron-rs/ron) format. The easiest way to create a collider is to run the `collider_creator` example by cloning the `rusty_engine` repository and running `cargo run --release --example collider_creator relative/path/to/my/image.png`. The image needs to be somewhere inside the `assets/` directory. You could also create the collider programmatically, set it on the `Sprite` struct, and call the sprite's `write_collider()` method. Or you could copy an existing collider file, name it the same as your image file (but with the `.collider` extension) and change it to match your image.  Collider coordinates need to define a convex polygon with points going in clockwise order. Coordinates are floating point values relative to the center of the image, with the center of the image being (0.0, 0.0).
+- Colliders are now loaded from collider files. Collider files use the [Rusty Object Notation (RON)](https://github.com/ron-rs/ron) format. The easiest way to create a collider is to run the `collider_creator` example by cloning the `rusty_engine` repository and running `cargo run --release --example collider_creator relative/path/to/my/image.png`. The image needs to be somewhere inside the `assets/` directory. You could also create the collider programmatically, set it on the `Sprite` struct, and call the sprite's `write_collider()` method. Or you could copy an existing collider file, name it the same as your image file (but with the `.collider` extension) and change it to match your image. Collider coordinates need to define a convex polygon with points going in clockwise order. Coordinates are floating point values relative to the center of the image, with the center of the image being (0.0, 0.0).
 - All sprites' colliders in the asset pack have been recreated more cleanly using the new `collider_creator` example.
 - The `assets/fonts` directory in the asset pack has been renamed to `assets/font` for consistency with the other directories.
 - `KeyboardState` and `MouseState` now both have 6 similar methods for processing key- and button-presses:
-   - `pressed` -> `pressed_any`
-   - `just_pressed` -> `just_pressed_any`
-   - `just_released` -> `just_released_any`
+  - `pressed` -> `pressed_any`
+  - `just_pressed` -> `just_pressed_any`
+  - `just_released` -> `just_released_any`
 
 ### Other Changes
 
 - `AudioManager::music_playing()` will return whether or not music is currently playing (accessible
-through `EngineState:audio_manager`)
+  through `EngineState:audio_manager`)
 - A custom font may now be selected by placing it in `assets/font` and specifying the relative filepath on `Text.font`.
 - Custom sounds may now be played via `AudioManager::play_music` and `AudioManager::play_sfx` by
-specifying a path to a sound file relative to `assets/audio`.
+  specifying a path to a sound file relative to `assets/audio`.
 - `Collider` now implements `PartialEq`, `Serialize`, and `Deserialize`
 - `Collider::is_convex` was added to make it easier to tell if you have a convex collider.
-- The `collider_creator` example was added to make it easy to load a sprite and make a collider file for it. Place your image file (let's call it `my_image.png`) anywhere inside your local clone of the Rusty Engine `assets/` directory and then run the example: `cargo run --release --example collider_creator -- assets/my_image.png`.  Afterwards, copy the image file and the new collider file `my_image.collider` file over to the assets directory of your own project.
+- The `collider_creator` example was added to make it easy to load a sprite and make a collider file for it. Place your image file (let's call it `my_image.png`) anywhere inside your local clone of the Rusty Engine `assets/` directory and then run the example: `cargo run --release --example collider_creator -- assets/my_image.png`. Afterwards, copy the image file and the new collider file `my_image.collider` file over to the assets directory of your own project.
 - You can now toggle debug rendering of colliders by setting `EngineState.debug_sprite_colliders` to `true`. The `collision` example will now toggle that value when you press the `C` key.
 - (meta) Improved CI times by using sccache together with GitHub Actions caching
 - Circular colliders no longer have duplicate starting and ending coordinates
@@ -196,8 +196,8 @@ specifying a path to a sound file relative to `assets/audio`.
 - Added `GameState.vec2_map` and `GameState.vec2_vec` as collections for the user to store state in.
 - Switched all instances of `std::collections::HashMap` to `bevy::utils::HashMap`.
 - Updated all examples to adjust for breaking changes, also:
-   - The `keyboard` example has been renamed to `keyboard_events` to distinguish it from the new `keyboard_state` example which uses `KeyboardState` for smooth movement
-   - The `mouse` example has been renamed to `mouse_events` to distinguish it from the new `mouse_state` example which uses `MouseState` for smooth movement
+  - The `keyboard` example has been renamed to `keyboard_events` to distinguish it from the new `keyboard_state` example which uses `KeyboardState` for smooth movement
+  - The `mouse` example has been renamed to `mouse_events` to distinguish it from the new `mouse_state` example which uses `MouseState` for smooth movement
 - Added now `level_creator` example to use as a rudimentary level creator (originally added in 1.1.0)
 
 ## [1.1.4] - 2021-08-26
@@ -280,11 +280,13 @@ specifying a path to a sound file relative to `assets/audio`.
 
 ## 0.0.1 - [0.11.0]
 
-- Rapid, messy development based on gfx via `glium`, sound via `rusty_audio`, timing via `rusty_time`, and custom logic for everything else.  This approach never reached a very usable state.
+- Rapid, messy development based on gfx via `glium`, sound via `rusty_audio`, timing via `rusty_time`, and custom logic for everything else. This approach never reached a very usable state.
 
-[Bevy]: https://bevyengine.org
+[bevy]: https://bevyengine.org
+
 <!-- next-url -->
-[Unreleased]: https://github.com/CleanCut/rusty_engine/compare/v5.1.1...HEAD
+
+[unreleased]: https://github.com/CleanCut/rusty_engine/compare/v5.1.1...HEAD
 [5.1.1]: https://github.com/CleanCut/rusty_engine/compare/v5.1.0...v5.1.1
 [5.1.0]: https://github.com/CleanCut/rusty_engine/compare/v5.0.6...v5.1.0
 [5.0.6]: https://github.com/CleanCut/rusty_engine/compare/v5.0.5...v5.0.6

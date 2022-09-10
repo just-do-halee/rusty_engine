@@ -45,9 +45,6 @@ fn main() {
     );
     // Make engine logging a bit quieter since we've got console instructions we want folks to see.
     std::env::set_var("RUST_LOG", "error");
-
-    let mut game = Game::new();
-
     println!(
         "
 This example is a level creator that lets you place sprites into a level, and then
@@ -74,18 +71,23 @@ Z - Print out Rust code of current level
 "
     );
 
-    let game_state = GameState::default();
+    let mut game = Game::new();
 
-    // Get our first sprite onto the board
-    let mut curr_sprite = game.add_sprite("0".to_string(), SpritePreset::RacingCarRed);
-    //curr_sprite.scale = 0.5;
-    curr_sprite.layer = MAX_LAYER;
+    let state = GameState::default();
 
-    game.add_logic(logic);
-    game.run(game_state);
+    game.logic.push(load).push(logic);
+    game.run(state);
 }
 
-fn logic(engine: &mut Engine, game_state: &mut GameState) {
+fn load(_: &mut Engine, state: &mut State<GameState>) {
+    // Get our first sprite onto the board
+    let mut curr_sprite = state
+        .repo
+        .add_one(Sprite::new("0".to_string(), SpritePreset::RacingCarRed));
+    //curr_sprite.scale = 0.5;
+    curr_sprite.layer = MAX_LAYER;
+}
+fn logic(engine: &mut Engine, game_state: &mut State<GameState>) {
     // Gather keyboard input
     let mut reset = false;
     let mut print_level = false;
@@ -106,7 +108,7 @@ fn logic(engine: &mut Engine, game_state: &mut GameState) {
                         print_level = true;
                     }
                     KeyCode::LShift | KeyCode::RShift => {
-                        game_state.shift_pressed = true;
+                        game_state.main.shift_pressed = true;
                     }
                     KeyCode::R | KeyCode::P => {
                         reset = true;
@@ -128,7 +130,7 @@ fn logic(engine: &mut Engine, game_state: &mut GameState) {
             } else {
                 match key_code {
                     KeyCode::LShift | KeyCode::RShift => {
-                        game_state.shift_pressed = false;
+                        game_state.main.shift_pressed = false;
                     }
                     _ => {}
                 }
@@ -141,12 +143,12 @@ fn logic(engine: &mut Engine, game_state: &mut GameState) {
         println!(
             "---------------\n\nuse rusty_engine::prelude::*;\n\nstruct GameState {{}}\n\nfn main() {{\n    let mut game = Game::new();\n"
         );
-        for sprite in engine.sprites.values() {
-            if sprite.label == game_state.current_label {
+        for sprite in game_state.repo.iter::<Sprite>() {
+            if sprite.label == game_state.main.current_label {
                 continue;
             }
             println!(
-                "    let a = game.add_sprite(\"{}\", \"{}\"); a.translation = Vec2::new({:.1}, {:.1}); a.rotation = {:.8}; a.scale = {:.8}; a.layer = {:.8}; a.collision = true;",
+                "    let a = game.add_one(\"{}\", \"{}\"); a.translation = Vec2::new({:.1}, {:.1}); a.rotation = {:.8}; a.scale = {:.8}; a.layer = {:.8}; a.collision = true;",
                 sprite.label,
                 sprite.filepath.to_string_lossy(),
                 sprite.translation.x,
@@ -156,11 +158,14 @@ fn logic(engine: &mut Engine, game_state: &mut GameState) {
                 sprite.layer,
             );
         }
-        println!("\n    game.add_logic(logic);\n    game.run(GameState {{}});\n}}\n\nfn logic(engine: &mut Engine, game_state: &mut GameState) {{\n    // Game Logic Goes Here\n}}")
+        println!("\n    game.add_logic(logic);\n    game.run(GameState {{}});\n}}\n\nfn logic(engine: &mut Engine, state: &mut GameState) {{\n    // Game Logic Goes Here\n}}")
     }
 
     // Handle current sprite that has not yet been placed
-    if let Some(sprite) = engine.sprites.get_mut(&game_state.current_label) {
+    if let Some(sprite) = game_state
+        .repo
+        .get_one_mut::<Sprite>(&game_state.main.current_label)
+    {
         // Should we print out the status of the sprite?
         if print_status {
             println!(
@@ -187,7 +192,7 @@ fn logic(engine: &mut Engine, game_state: &mut GameState) {
             if mouse_button_input.state != ButtonState::Pressed {
                 break;
             }
-            let rotate_amount = if game_state.shift_pressed {
+            let rotate_amount = if game_state.main.shift_pressed {
                 std::f32::consts::TAU / 360.0
             } else {
                 std::f32::consts::FRAC_PI_4
@@ -201,7 +206,11 @@ fn logic(engine: &mut Engine, game_state: &mut GameState) {
         }
         // Handle scale via mousewheel
         for mouse_wheel in &engine.mouse_wheel_events {
-            let scale_amount = if game_state.shift_pressed { 0.01 } else { 0.1 };
+            let scale_amount = if game_state.main.shift_pressed {
+                0.01
+            } else {
+                0.1
+            };
             if mouse_wheel.y > 0.0 || mouse_wheel.x < 0.0 {
                 sprite.scale *= 1.0 + scale_amount;
             } else {
@@ -215,9 +224,9 @@ fn logic(engine: &mut Engine, game_state: &mut GameState) {
     // Change sprite to prev/next preset
     if prev_preset || next_preset {
         let old_sprite = {
-            engine
-                .sprites
-                .get_mut(&game_state.current_label)
+            game_state
+                .repo
+                .get_one_mut::<Sprite>(&game_state.main.current_label)
                 .unwrap()
                 .clone()
         };
@@ -227,42 +236,41 @@ fn logic(engine: &mut Engine, game_state: &mut GameState) {
             .unwrap();
         let new_idx = if next_preset {
             (idx + 1) % SpritePreset::variant_iter().count()
+        } else if idx == 0 {
+            SpritePreset::variant_iter().count() - 1
         } else {
-            if idx == 0 {
-                SpritePreset::variant_iter().count() - 1
-            } else {
-                idx - 1
-            }
+            idx - 1
         };
         let new_preset = SpritePreset::variant_iter().nth(new_idx).unwrap();
 
-        let new_label = game_state.next_sprite_num.to_string();
-        game_state.next_sprite_num += 1;
+        let new_label = game_state.main.next_sprite_num.to_string();
+        game_state.main.next_sprite_num += 1;
         let mut new_sprite = Sprite::new(new_label.clone(), new_preset);
 
-        game_state.current_label = new_label;
+        game_state.main.current_label = new_label;
         new_sprite.layer = MAX_LAYER;
         new_sprite.translation = old_sprite.translation;
         new_sprite.rotation = old_sprite.rotation;
         new_sprite.scale = old_sprite.scale;
-        engine.sprites.insert(new_sprite.label.clone(), new_sprite);
-        engine.sprites.remove::<str>(old_sprite.label.as_ref());
+        game_state.repo.add_one(new_sprite);
+        game_state.repo.remove::<Sprite>(old_sprite.label);
+
         println!("{:?}", new_preset);
     }
 
     // Place an sprite
     if place_sprite {
         let mut sprite = {
-            engine
-                .sprites
-                .get_mut(&game_state.current_label)
+            game_state
+                .repo
+                .get_one_mut::<Sprite>(&game_state.main.current_label)
                 .unwrap()
                 .clone()
         };
-        sprite.layer = game_state.next_layer;
-        game_state.next_layer += 0.01;
-        sprite.label = game_state.next_sprite_num.to_string();
-        game_state.next_sprite_num += 1;
-        engine.sprites.insert(sprite.label.clone(), sprite);
+        sprite.layer = game_state.main.next_layer;
+        game_state.main.next_layer += 0.01;
+        sprite.label = game_state.main.next_sprite_num.to_string();
+        game_state.main.next_sprite_num += 1;
+        game_state.repo.add_one(sprite);
     }
 }
